@@ -1,6 +1,8 @@
-ssl/ca-key.pem
-ssl/ca.csr
-ssl/ca.pem
-ssl/consul-key.pem
-ssl/consul.csr
-ssl/consul.pem
+ca-key.pem
+
+ca.csr
+ca.pem
+
+consul-key.pem
+consul.csr
+consul.pem
