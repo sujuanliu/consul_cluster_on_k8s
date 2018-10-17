@@ -1,0 +1,7 @@
+#!/bin/sh
+kubectl delete statefulset consul-server consul-client
+kubectl delete pvc data-consul-server-0 data-consul-server-1 data-consul-server-2 data-consul-client-0
+kubectl delete svc consul-server consul-client
+kubectl delete pv data-consul-server-0 data-consul-server-1 data-consul-server-2 data-consul-client-0
+kubectl delete secrets consul
+kubectl delete configmaps consul

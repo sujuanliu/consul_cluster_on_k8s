@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Generate SSL certification for consul servers and nodes
+cp ca/bin/cfssl* /usr/bin/
+chmod +x /usr/bin/cfssl*
+cd ca/ssl
+cfssl gencert -initca ../json/ca-csr.json | cfssljson -bare ca
+cfssl gencert \
+        -ca=ca.pem \
+        -ca-key=ca-key.pem \
+        -config=../json/ca-config.json \
+        -profile=default \
+        ../json/consul-csr.json | cfssljson -bare consul
+cd ../../
+
+# Create k8s secret files for consul ssl
+# You can generate key via run 'consul keygen'
+GOSSIP_ENCRYPTION_KEY=3xWU6KsPHr6NDjMFLbhDuA==
+kubectl create secret generic consul \
+        --from-literal="gossip-encryption-key=${GOSSIP_ENCRYPTION_KEY}" \
+        --from-file=ca/ssl/ca.pem \
+        --from-file=ca/ssl/consul.pem \
+        --from-file=ca/ssl/consul-key.pem
+
+# Create k8s configmap file for consul config file
+kubectl create configmap consul --from-file=configs/server.json
+
+# Create k8s PVC for all of pods
+kubectl create -f pvc/pvc.yaml
+
+# Create consul service cluster
+kubectl create -f services/consul-server.yaml
+
+# Create k8s statefulset to start consul pods
+kubectl create -f statefulsets/consul-server.yaml
+
+kubectl create -f services/consul-client.yaml
+
+# Create k8s statefulset to start consul pods
+kubectl create -f statefulsets/consul-client.yaml

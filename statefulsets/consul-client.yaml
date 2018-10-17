@@ -1,0 +1,88 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: consul-client
+spec:
+  serviceName: consul-client
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: consul-client
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: consul
+          image: "consul:1.2.2"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: GOSSIP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: consul
+                  key: gossip-encryption-key
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          args:
+            - "agent"
+            - "-advertise=$(POD_IP)"
+            - "-bind=0.0.0.0"
+            - "-retry-join=consul-server-0.consul-server.$(NAMESPACE).svc.cluster.local"
+            - "-retry-join=consul-server-1.consul-server.$(NAMESPACE).svc.cluster.local"
+            - "-retry-join=consul-server-2.consul-server.$(NAMESPACE).svc.cluster.local"
+            - "-client=0.0.0.0"
+            - "-config-file=/consul/myconfig/server.json"
+            - "-datacenter=dc1"
+            - "-data-dir=/consul/data"
+            - "-domain=cluster.local"
+            - "-encrypt=$(GOSSIP_ENCRYPTION_KEY)"
+            - "-ui"
+            - "-disable-host-node-id"
+          volumeMounts:
+            - name: data
+              mountPath: /consul/data
+            - name: config
+              mountPath: /consul/myconfig
+            - name: tls
+              mountPath: /etc/tls
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - consul leave
+          ports:
+            - containerPort: 8500
+              name: ui-port
+            - containerPort: 53
+              name: udp-port
+            - containerPort: 8443
+              name: https-port
+            - containerPort: 8080
+              name: http-port
+            - containerPort: 8600
+              name: consuldns
+      volumes:
+        - name: config
+          configMap:
+            name: consul
+        - name: tls
+          secret:
+            secretName: consul
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
